@@ -1,0 +1,57 @@
+#
+# Vagrant Setting
+# 2017.12.12
+#
+
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  # インストールOS指定
+  config.vm.box = 'bento/centos-6.7'
+
+  # ip,hostname指定
+  config.vm.network :private_network, ip: "192.168.33.100"
+  config.vm.network :public_network, ip: "10.0.1.100"
+
+  # ポートフォワード設定
+  base_port = 7100
+  uid = Process.uid
+  config.vm.box = 'bento/centos-6.7'
+  config.vm.network :forwarded_port, guest: 3000, host: uid + base_port
+  config.vm.network :forwarded_port, guest: 1080, host: uid + base_port + 50
+  config.vm.network :forwarded_port, guest: 8080, host: uid + base_port + 8080
+  config.vm.network :forwarded_port, guest: 3001, host: 3001
+  config.vm.network :forwarded_port, guest: 3002, host: 3002
+  config.vm.network :forwarded_port, guest: 8285, host: 8285
+
+  # NFSによるフォルダ同期設定
+  #config.vm.synced_folder ".", "/home/vagrant/work",
+  #  create: "true",
+  #  type: "nfs",
+  #  :nfs => true
+
+  config.vm.synced_folder './work', '/home/vagrant/rsync_work', type: "rsync", rsync__exclude: [".git/", ".bundle/", "log/", "tmp/", "node_modules/",".idea/"]
+  if Vagrant.has_plugin?("vagrant-gatling-rsync")
+    config.gatling.latency = 0.2
+    config.gatling.time_format = "%H:%M:%S"
+  end
+
+  # SSH設定
+  config.ssh.forward_agent = true
+  config.ssh.insert_key = false
+
+  # Ansible起動設定
+  config.vm.provision "ansible" do |ansible|
+    ansible.playbook = 'ansible/vagrant.yml'
+    ansible.limit = 'all'
+  end
+
+  # VirtualMachine設定
+  config.vm.provider "virtualbox" do |vb|
+    vb.customize ["modifyvm", :id, "--memory", "2048", "--cpus", "2", "--ioapic", "on"]
+    vb.customize ["modifyvm", :id, "--natdnsproxy1", "off"]
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+  end
+
+end
